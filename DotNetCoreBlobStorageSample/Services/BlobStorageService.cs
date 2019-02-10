@@ -11,8 +11,10 @@ namespace DotNetCoreBlobStorageSample.Services
     /// </summary>
     public interface IBlobStorageService
     {
+        string ConnectionString { set; }
+        CloudBlobContainer GetContainer(string containerName);
         CloudBlockBlob GetBlob(string containerName, string blobName);
-        Task<List<CloudBlockBlob>> GetBlobs(string containerName, string prefix);
+        Task<List<CloudBlockBlob>> GetBlobs(string containerName, string prefix = null);
     }
 
     /// <summary>
@@ -22,7 +24,18 @@ namespace DotNetCoreBlobStorageSample.Services
     {
         public BlobStorageService(string connectionString)
         {
-            SetConnectionString(connectionString);
+            ConnectionString = connectionString;
+        }
+
+        /// <summary>
+        /// ConnectionStringです
+        /// </summary>
+        public string ConnectionString
+        {
+            set
+            {
+                cloudStorageAccount = CloudStorageAccount.Parse(value);
+            }
         }
 
         /// <summary>
@@ -31,12 +44,14 @@ namespace DotNetCoreBlobStorageSample.Services
         private CloudStorageAccount cloudStorageAccount;
 
         /// <summary>
-        /// ConnectionStringを設定します
+        /// コンテナを取得します
         /// </summary>
-        /// <param name="connectionString"></param>
-        public void SetConnectionString(string connectionString)
+        /// <param name="containerName">コンテナ名</param>
+        /// <returns></returns>
+        public CloudBlobContainer GetContainer(string containerName)
         {
-            cloudStorageAccount = CloudStorageAccount.Parse(connectionString);
+            return cloudStorageAccount.CreateCloudBlobClient()
+                .GetContainerReference(containerName);
         }
 
         /// <summary>
@@ -61,7 +76,7 @@ namespace DotNetCoreBlobStorageSample.Services
         /// <param name="containerName">コンテナ名</param>
         /// <param name="prefix">Blobのプレフィックス</param>
         /// <returns></returns>
-        public async Task<List<CloudBlockBlob>> GetBlobs(string containerName, string prefix)
+        public async Task<List<CloudBlockBlob>> GetBlobs(string containerName, string prefix = null)
         {
             var blobClient = cloudStorageAccount.CreateCloudBlobClient();
 
@@ -72,7 +87,8 @@ namespace DotNetCoreBlobStorageSample.Services
             BlobContinuationToken continuationToken = null;
             do
             {
-                var listResults = await container.ListBlobsSegmentedAsync(prefix, continuationToken);
+                var listResults = prefix == null ? await container.ListBlobsSegmentedAsync(continuationToken)
+                    : await container.ListBlobsSegmentedAsync(prefix, continuationToken);
                 continuationToken = listResults.ContinuationToken;
                 results.AddRange(listResults.Results.Select(_ => (CloudBlockBlob) _));
             } while (continuationToken != null);

@@ -1,7 +1,6 @@
 ﻿using DotNetCoreBlobStorageSample.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using System;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -23,11 +22,21 @@ namespace DotNetCoreBlobStorageSample
             var service = serviceCollection.BuildServiceProvider().GetService<IBlobStorageService>();
 
             // サンプル実装
-            var blobs = await service.GetBlobs("sample", "201902");
-            
+            var fileName = "201902_01_test_upload.txt";
+            var filePath = Path.Combine("./", fileName);
+            File.WriteAllText(filePath, "upload test!!");
+
+            // Upload
+            var block = service.GetBlob("sample", fileName);
+            block.Properties.ContentType = "text/plain";
+            await block.UploadFromFileAsync(filePath);
+
+            // Get
+            File.Delete(filePath);
+            var blobs = await service.GetBlobs("sample", "201902");            
             foreach (var blob in blobs)
             {
-                await blob.DownloadToFileAsync($".\\{blob.Name}", FileMode.OpenOrCreate);
+                await blob.DownloadToFileAsync(filePath, FileMode.OpenOrCreate);
             }
         }
     }
